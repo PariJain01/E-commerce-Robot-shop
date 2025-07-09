@@ -191,7 +191,7 @@ Original application: [Instana Robot Shop](https://github.com/instana/robot-shop
 
 ---
 
-## 🙋‍♂️ Autho
+## 🙋‍♂️ Author 
 
 Pari Jain
 
