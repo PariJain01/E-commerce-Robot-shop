@@ -1,128 +1,194 @@
-# Sample Microservice Application
+# 🛒 Stan's Robot Shop - Microservices Deployment on Azure Kubernetes Service
 
-Stan's Robot Shop is a sample microservice application you can use as a sandbox to test and learn containerised application orchestration and monitoring techniques. It is not intended to be a comprehensive reference example of how to write a microservices application, although you will better understand some of those concepts by playing with Stan's Robot Shop. To be clear, the error handling is patchy and there is not any security built into the application.
+This project demonstrates deploying the **Stan's Robot Shop** microservices e-commerce application on **Azure Kubernetes Service (AKS)** with container images stored in **Azure Container Registry (ACR)** and orchestrated via **Helm**.
 
-You can get more detailed information from my [blog post](https://www.instana.com/blog/stans-robot-shop-sample-microservice-application/) about this sample microservice application.
+---
 
-This sample microservice application has been built using these technologies:
-- NodeJS ([Express](http://expressjs.com/))
-- Java ([Spring Boot](https://spring.io/))
-- Python ([Flask](http://flask.pocoo.org))
-- Golang
-- PHP (Apache)
-- MongoDB
-- Redis
-- MySQL ([Maxmind](http://www.maxmind.com) data)
-- RabbitMQ
-- Nginx
-- AngularJS (1.x)
+## 🚀 Project Overview
 
-The various services in the sample application already include all required Instana components installed and configured. The Instana components provide automatic instrumentation for complete end to end [tracing](https://docs.instana.io/core_concepts/tracing/), as well as complete visibility into time series metrics for all the technologies.
+Stan’s Robot Shop is a sample microservices application composed of:
+- **Frontend:** Node.js, AngularJS
+- **Backend services:** Java (Spring Boot), Python (Flask), Go, PHP
+- **Databases & Messaging:** MongoDB, MySQL, Redis, RabbitMQ
 
-To see the application performance results in the Instana dashboard, you will first need an Instana account. Don't worry a [trial account](https://instana.com/trial?utm_source=github&utm_medium=robot_shop) is free.
+**Goal:** Learn containerization, orchestration, and cloud deployment on Azure.
 
-## Build from Source
-To optionally build from source (you will need a newish version of Docker to do this) use Docker Compose. Optionally edit the `.env` file to specify an alternative image registry and version tag; see the official [documentation](https://docs.docker.com/compose/env-file/) for more information.
+---
 
-To download the tracing module for Nginx, it needs a valid Instana agent key. Set this in the environment before starting the build.
+## 🧰 Prerequisites
 
-```shell
-$ export INSTANA_AGENT_KEY="<your agent key>"
+- Azure Subscription
+- Azure CLI installed
+- Docker installed
+- Helm installed
+- Kubernetes CLI (`kubectl`) installed
+
+---
+
+## 🛠️ Steps to Deploy
+
+### 1️⃣ Clone This Repository
+
+```bash
+git clone https://github.com/PariJAin01/robot-shop.git
+cd robot-shop/K8s/helm
 ```
 
-Now build all the images.
+---
 
-```shell
-$ docker-compose build
+### 2️⃣ Create Azure Container Registry (ACR)
+
+```bash
+az acr create --resource-group <ResourceGroup> --name <ACRName> --sku Basic
 ```
 
-If you modified the `.env` file and changed the image registry, you need to push the images to that registry
+Example:
 
-```shell
-$ docker-compose push
+```bash
+az acr create --resource-group RobotShopRG --name robotshopacr --sku Basic
 ```
 
-## Run Locally
-You can run it locally for testing.
+---
 
-If you did not build from source, don't worry all the images are on Docker Hub. Just pull down those images first using:
+### 3️⃣ Build and Push Docker Images
 
-```shell
-$ docker-compose pull
+*(You can build images locally or use provided images.)*
+
+Example build & push for one service:
+
+```bash
+docker build -t robotshopacr.azurecr.io/robot-shop/rs-web:1.0 ./path/to/web
+docker push robotshopacr.azurecr.io/robot-shop/rs-web:1.0
 ```
 
-Fire up Stan's Robot Shop with:
+Repeat for each microservice.
 
-```shell
-$ docker-compose up
+Verify images:
+
+```bash
+az acr repository list --name robotshopacr --output table
+```
+![ACR Repositories ](/sceenshots/ACR-Repo.png)
+---
+
+### 4️⃣ Create AKS Cluster
+
+```bash
+az aks create \
+  --resource-group RobotShopRG \
+  --name robotshop-aks \
+  --node-count 2 \
+  --enable-addons monitoring \
+  --generate-ssh-keys
+```
+![AKS Cluster ](/sceenshots/AKS-Cluster.png)
+---
+
+### 5️⃣ Attach ACR to AKS
+
+```bash
+az aks update \
+  --name robotshop-aks \
+  --resource-group E-CommerceRG \
+  --attach-acr robotshopacr
 ```
 
-If you want to fire up some load as well:
+---
 
-```shell
-$ docker-compose -f docker-compose.yaml -f docker-compose-load.yaml up
+### 6️⃣ Connect kubectl to AKS
+
+```bash
+az aks get-credentials \
+  --resource-group E-CommerceRG \
+  --name robotshop-aks
+```
+![Merge AKS](/sceenshots/mergedToLocal.png/)
+
+
+Verify connection:
+
+```bash
+kubectl get nodes
+```
+![Running Nodes](/sceenshots/Nodes.png)
+
+
+---
+
+### 7️⃣ Install the Helm Chart
+
+Update your `values.yaml` to reference your ACR images:
+
+```yaml
+image:
+  repo: robotshopacr.azurecr.io/robot-shop
+  version: 1.0
+  pullPolicy: IfNotPresent
 ```
 
-If you are running it locally on a Linux host you can also run the Instana [agent](https://docs.instana.io/quick_start/agent_setup/container/docker/) locally, unfortunately the agent is currently not supported on Mac.
+Install:
 
-There is also only limited support on ARM architectures at the moment.
-
-## Marathon / DCOS
-
-The manifests for robotshop are in the *DCOS/* directory. These manifests were built using a fresh install of DCOS 1.11.0. They should work on a vanilla HA or single instance install.
-
-You may install Instana via the DCOS package manager, instructions are here: https://github.com/dcos/examples/tree/master/instana-agent/1.9
-
-## Kubernetes
-You can run Kubernetes locally using [minikube](https://github.com/kubernetes/minikube) or on one of the many cloud providers.
-
-The Docker container images are all available on [Docker Hub](https://hub.docker.com/u/robotshop/).
-
-Install Stan's Robot Shop to your Kubernetes cluster using the [Helm](K8s/helm/README.md) chart.
-
-To deploy the Instana agent to Kubernetes, just use the [helm](https://github.com/instana/helm-charts) chart.
-
-## Accessing the Store
-If you are running the store locally via *docker-compose up* then, the store front is available on localhost port 8080 [http://localhost:8080](http://localhost:8080/)
-
-If you are running the store on Kubernetes via minikube then, find the IP address of Minikube and the Node Port of the web service.
-
-```shell
-$ minikube ip
-$ kubectl get svc web
+```bash
+helm install robot-shop .
 ```
 
-If you are using a cloud Kubernetes / Openshift / Mesosphere then it will be available on the load balancer of that system.
+---
 
-## Load Generation
-A separate load generation utility is provided in the `load-gen` directory. This is not automatically run when the application is started. The load generator is built with Python and [Locust](https://locust.io). The `build.sh` script builds the Docker image, optionally taking *push* as the first argument to also push the image to the registry. The registry and tag settings are loaded from the `.env` file in the parent directory. The script `load-gen.sh` runs the image, it takes a number of command line arguments. You could run the container inside an orchestration system (K8s) as well if you want to, an example descriptor is provided in K8s directory. For End-user Monitoring ,load is not automatically generated but by navigating through the Robotshop from the browser .For more details see the [README](load-gen/README.md) in the load-gen directory.  
+### 8️⃣ Verify Deployment
 
-## Website Monitoring / End-User Monitoring
+```bash
+kubectl get pods
+```
+![Running Pods](/sceenshots/Running%20Pods.png)
 
-### Docker Compose
+All pods should be `Running`.
 
-To enable Website Monioring / End-User Monitoring (EUM) see the official [documentation](https://docs.instana.io/website_monitoring/) for how to create a configuration. There is no need to inject the JavaScript fragment into the page, this will be handled automatically. Just make a note of the unique key and set the environment variable `INSTANA_EUM_KEY` and `INSTANA_EUM_REPORTING_URL` for the web image within `docker-compose.yaml`.
 
-### Kubernetes
+---
 
-The Helm chart for installing Stan's Robot Shop supports setting the key and endpoint url required for website monitoring, see the [README](K8s/helm/README.md).
+## 📂 Project Structure
 
-## Prometheus
-
-The cart and payment services both have Prometheus metric endpoints. These are accessible on `/metrics`. The cart service provides:
-
-* Counter of the number of items added to the cart
-
-The payment services provides:
-
-* Counter of the number of items perchased
-* Histogram of the total number of items in each cart
-* Histogram of the total value of each cart
-
-To test the metrics use:
-
-```shell
-$ curl http://<host>:8080/api/cart/metrics
-$ curl http://<host>:8080/api/payment/metrics
+```
+robot-shop/
+├── K8s/
+│   └── helm/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
+├── src/
+├── azure-pipelines.yml
+├── README.md
 ```
 
+---
+
+# 📸 Screenshots
+
+
+### 1️⃣ Screenshot of AKS pods
+![Running pods](/sceenshots/Pods.png)
+
+### 2️⃣ Screenshot of service
+![AKS services](/sceenshots/AKS_service.png)
+
+### 3️⃣ Screenshot of the Pipeline Success
+![Application UI](/sceenshots/Pipeline-success.png)
+
+### 4️⃣ Screenshot of the access app
+![Application UI](/sceenshots/Access%20app.png)
+
+### 5️⃣ Screenshot of the application UI
+![Application UI](/sceenshots/Application%20UI.png)
+
+### 6️⃣ See my [azure-pipeline.yml](azure-pipeline.yml)
+---
+
+## Credits
+
+Original application: [Instana Robot Shop](https://github.com/instana/robot-shop)
+
+---
+
+## 🙋‍♂️ Author
+Pari Jain
+Azure DevOps & Kubernetes Enthusiast
