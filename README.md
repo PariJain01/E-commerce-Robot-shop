@@ -191,6 +191,8 @@ Original application: [Instana Robot Shop](https://github.com/instana/robot-shop
 
 ---
 
-## 🙋‍♂️ Author
+## 🙋‍♂️ Autho
+
 Pari Jain
+
 Azure DevOps & Kubernetes Enthusiast
