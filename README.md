@@ -180,7 +180,9 @@ robot-shop/
 ### 5️⃣ Screenshot of the application UI
 ![Application UI](/sceenshots/Application%20UI.png)
 
-### 6️⃣ See my [azure-pipeline.yml](azure-pipeline.yml)
+### 6️⃣ See more [Screenshots](/sceenshots/)
+
+### 7️⃣ See my [azure-pipeline.yml](azure-pipeline.yml)
 ---
 
 ## Credits
